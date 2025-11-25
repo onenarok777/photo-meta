@@ -31,10 +31,62 @@ function App() {
   const [geminiLoading, setGeminiLoading] = useState(false);
   const [geminiError, setGeminiError] = useState<string | null>(null);
 
+  const [isDragging, setIsDragging] = useState(false);
+  const [imageUrl, setImageUrl] = useState("");
+
   useEffect(() => {
     if (GA_MEASUREMENT_ID) {
       ReactGA.send({ hitType: "pageview", page: window.location.pathname });
     }
+
+    // Handle paste events
+    const handlePaste = (e: ClipboardEvent) => {
+      const items = e.clipboardData?.items;
+      if (items) {
+        for (let i = 0; i < items.length; i++) {
+          if (items[i].type.indexOf("image") !== -1) {
+            const file = items[i].getAsFile();
+            if (file) processFile(file);
+            break;
+          }
+        }
+      }
+    };
+    window.addEventListener("paste", handlePaste);
+
+    // Global Drag & Drop
+    const handleGlobalDragOver = (e: DragEvent) => {
+      e.preventDefault();
+      setIsDragging(true);
+    };
+
+    const handleGlobalDragLeave = (e: DragEvent) => {
+      e.preventDefault();
+      // Only set to false if we're leaving the window (relatedTarget is null)
+      if (e.relatedTarget === null) {
+        setIsDragging(false);
+      }
+    };
+
+    const handleGlobalDrop = (e: DragEvent) => {
+      e.preventDefault();
+      setIsDragging(false);
+      const file = e.dataTransfer?.files?.[0];
+      if (file && file.type.startsWith("image/")) {
+        processFile(file);
+      }
+    };
+
+    window.addEventListener("dragover", handleGlobalDragOver);
+    window.addEventListener("dragleave", handleGlobalDragLeave);
+    window.addEventListener("drop", handleGlobalDrop);
+
+    return () => {
+      window.removeEventListener("paste", handlePaste);
+      window.removeEventListener("dragover", handleGlobalDragOver);
+      window.removeEventListener("dragleave", handleGlobalDragLeave);
+      window.removeEventListener("drop", handleGlobalDrop);
+    };
   }, []);
 
   const detectAIGeneration = (
@@ -123,14 +175,11 @@ function App() {
     };
   };
 
-  const handleFileUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>
-  ) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-
+  const processFile = async (file: File) => {
     setLoading(true);
     setGeminiError(null);
+    setAnalysis(null);
+    setImagePreview(null);
 
     try {
       // Create preview
@@ -193,6 +242,34 @@ function App() {
     }
   };
 
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>
+  ) => {
+    const file = event.target.files?.[0];
+    if (file) processFile(file);
+  };
+
+  const handleUrlUpload = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!imageUrl) return;
+
+    try {
+      setLoading(true);
+      const response = await fetch(imageUrl);
+      if (!response.ok) throw new Error("Network response was not ok");
+      const blob = await response.blob();
+      const file = new File([blob], "image-from-url.jpg", { type: blob.type });
+      processFile(file);
+      setImageUrl(""); // Clear input
+    } catch (error) {
+      console.error("Error fetching image:", error);
+      alert(
+        "ไม่สามารถโหลดภาพจากลิงก์ได้ (อาจติดสิทธิ์การเข้าถึง/CORS) กรุณาลองดาวน์โหลดภาพแล้วอัปโหลดแทน"
+      );
+      setLoading(false);
+    }
+  };
+
   const formatMetadataValue = (value: any): string => {
     if (value === null || value === undefined) return "N/A";
     if (typeof value === "object") {
@@ -206,7 +283,7 @@ function App() {
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
       {/* Header */}
-      <header className="bg-black/30 backdrop-blur-md border-b border-white/10 sticky top-0 z-10">
+      <header className="bg-black/30 backdrop-blur-md border-b border-white/10 sticky top-0 z-[100]">
         <div className="container mx-auto px-4 py-6">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
@@ -238,9 +315,15 @@ function App() {
 
       <main className="container mx-auto px-4 py-8 max-w-7xl">
         {/* Upload Section */}
-        <div className="mb-8">
-          <label className="block">
-            <div className="bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-sm border-2 border-dashed border-purple-500/50 rounded-2xl p-12 text-center cursor-pointer hover:border-purple-400 hover:bg-purple-500/20 transition-all duration-300">
+        <div className="mb-8 space-y-4">
+          <label className="block relative z-20">
+            <div
+              className={`bg-gradient-to-br from-purple-500/10 to-pink-500/10 backdrop-blur-sm border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all duration-300 ${
+                isDragging
+                  ? "border-purple-400 bg-purple-500/30 scale-[1.02] shadow-[0_0_30px_rgba(168,85,247,0.3)]"
+                  : "border-purple-500/50 hover:border-purple-400 hover:bg-purple-500/20"
+              }`}
+            >
               <input
                 type="file"
                 accept="image/*"
@@ -248,7 +331,9 @@ function App() {
                 className="hidden"
               />
               <svg
-                className="w-16 h-16 mx-auto mb-4 text-purple-400"
+                className={`w-16 h-16 mx-auto mb-4 text-purple-400 transition-transform duration-300 ${
+                  isDragging ? "scale-110" : ""
+                }`}
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -261,13 +346,44 @@ function App() {
                 />
               </svg>
               <p className="text-xl font-semibold text-white mb-2">
-                คลิกเพื่ออัปโหลดภาพ
+                คลิกเพื่ออัปโหลดภาพ หรือ ลากไฟล์มาวาง
               </p>
               <p className="text-purple-300">
-                รองรับไฟล์ JPG, PNG, WebP และอื่นๆ
+                รองรับไฟล์ JPG, PNG, WebP (สามารถกด Ctrl+V เพื่อวางภาพได้)
               </p>
             </div>
           </label>
+
+          {/* URL Upload */}
+          <form onSubmit={handleUrlUpload} className="flex gap-2">
+            <input
+              type="url"
+              placeholder="หรือวางลิงก์รูปภาพที่นี่..."
+              value={imageUrl}
+              onChange={(e) => setImageUrl(e.target.value)}
+              className="flex-1 bg-black/30 border border-purple-500/30 rounded-xl px-4 py-3 text-white placeholder-purple-300/50 focus:outline-none focus:border-purple-500 transition-colors"
+            />
+            <button
+              type="submit"
+              disabled={!imageUrl || loading}
+              className="bg-purple-600 hover:bg-purple-500 disabled:bg-purple-600/50 disabled:cursor-not-allowed text-white px-6 py-3 rounded-xl font-medium transition-colors flex items-center gap-2"
+            >
+              <svg
+                className="w-5 h-5"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"
+                />
+              </svg>
+              โหลดภาพ
+            </button>
+          </form>
         </div>
 
         {loading && (
@@ -584,6 +700,13 @@ function App() {
         )}
       </main>
 
+      {/* Footer */}
+      <footer className="container mx-auto px-4 py-6 text-center">
+        <p className="text-purple-300/60 text-sm">
+          &copy; {new Date().getFullYear()} ZomJeedz. All rights reserved.
+        </p>
+      </footer>
+
       <style>{`
         .custom-scrollbar::-webkit-scrollbar {
           width: 8px;
@@ -600,6 +723,31 @@ function App() {
           background: rgba(168, 85, 247, 0.7);
         }
       `}</style>
+
+      {/* Drag Overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 z-50 bg-purple-900/80 backdrop-blur-sm flex items-center justify-center pointer-events-none animate-in fade-in duration-200">
+          <div className="text-center p-8 border-4 border-dashed border-white/50 rounded-3xl bg-white/10">
+            <svg
+              className="w-24 h-24 mx-auto mb-4 text-white animate-bounce"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={3}
+                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"
+              />
+            </svg>
+            <h2 className="text-3xl font-bold text-white">วางไฟล์ที่นี่</h2>
+            <p className="text-purple-200 mt-2 text-lg">
+              เพื่อเริ่มการวิเคราะห์
+            </p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

@@ -1,5 +1,14 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
+import ReactGA from "react-ga4";
 import ExifReader from "exifreader";
+import { geminiService } from "./services/gemini";
+import type { GeminiDetectionResult } from "./services/gemini";
+
+// Initialize GA4
+const GA_MEASUREMENT_ID = import.meta.env.VITE_GOOGLE_ANALYTICS_ID;
+if (GA_MEASUREMENT_ID) {
+  ReactGA.initialize(GA_MEASUREMENT_ID);
+}
 
 interface ImageMetadata {
   [key: string]: any;
@@ -12,12 +21,21 @@ interface ImageAnalysis {
   metadata: ImageMetadata;
   isAIGenerated: boolean;
   aiIndicators: string[];
+  geminiAnalysis?: GeminiDetectionResult;
 }
 
 function App() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<ImageAnalysis | null>(null);
   const [loading, setLoading] = useState(false);
+  const [geminiLoading, setGeminiLoading] = useState(false);
+  const [geminiError, setGeminiError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (GA_MEASUREMENT_ID) {
+      ReactGA.send({ hitType: "pageview", page: window.location.pathname });
+    }
+  }, []);
 
   const detectAIGeneration = (
     metadata: ImageMetadata
@@ -112,6 +130,7 @@ function App() {
     if (!file) return;
 
     setLoading(true);
+    setGeminiError(null);
 
     try {
       // Create preview
@@ -132,10 +151,10 @@ function App() {
         img.onload = resolve;
       });
 
-      // Detect AI generation
+      // Detect AI generation from metadata
       const { isAI, indicators } = detectAIGeneration(tags);
 
-      // Prepare analysis
+      // Prepare initial analysis
       const analysisData: ImageAnalysis = {
         fileName: file.name,
         fileSize: `${(file.size / 1024).toFixed(2)} KB`,
@@ -146,10 +165,30 @@ function App() {
       };
 
       setAnalysis(analysisData);
+      setLoading(false);
+
+      // Run Gemini analysis in background if configured
+      if (geminiService.isConfigured()) {
+        setGeminiLoading(true);
+        try {
+          const geminiResult = await geminiService.detectAIImage(file);
+          setAnalysis((prev) =>
+            prev ? { ...prev, geminiAnalysis: geminiResult } : prev
+          );
+        } catch (error) {
+          console.error("Gemini analysis error:", error);
+          setGeminiError(
+            error instanceof Error
+              ? error.message
+              : "Failed to analyze with Gemini"
+          );
+        } finally {
+          setGeminiLoading(false);
+        }
+      }
     } catch (error) {
       console.error("Error analyzing image:", error);
       alert("เกิดข้อผิดพลาดในการวิเคราะห์ภาพ / Error analyzing image");
-    } finally {
       setLoading(false);
     }
   };
@@ -274,17 +313,66 @@ function App() {
                 </div>
               )}
 
-              {/* AI Detection Result */}
-              <div
-                className={`backdrop-blur-md border-2 rounded-2xl p-6 ${
-                  analysis.isAIGenerated
-                    ? "bg-gradient-to-br from-orange-500/20 to-red-500/20 border-orange-500/50"
-                    : "bg-gradient-to-br from-green-500/20 to-emerald-500/20 border-green-500/50"
-                }`}
-              >
-                <div className="flex items-center gap-3 mb-4">
-                  {analysis.isAIGenerated ? (
-                    <div className="w-12 h-12 bg-gradient-to-br from-orange-500 to-red-500 rounded-full flex items-center justify-center">
+              {/* Gemini Visual Analysis */}
+
+              {geminiLoading && (
+                <div className="bg-purple-500/10 backdrop-blur-md border border-purple-500/50 rounded-2xl p-6">
+                  <div className="flex items-center gap-3">
+                    <div className="animate-spin rounded-full h-8 w-8 border-3 border-purple-500 border-t-transparent"></div>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white">
+                        กำลังวิเคราะห์ด้วย Gemini AI...
+                      </h3>
+                      <p className="text-sm text-purple-300">
+                        กำลังตรวจสอบลักษณะภาพโดยตรง
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {geminiError && (
+                <div className="bg-red-500/10 backdrop-blur-md border border-red-500/50 rounded-2xl p-6">
+                  <div className="flex items-start gap-3">
+                    <svg
+                      className="w-6 h-6 text-red-400 mt-0.5"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"
+                      />
+                    </svg>
+                    <div>
+                      <h3 className="text-lg font-semibold text-white mb-1">
+                        ไม่สามารถวิเคราะห์ด้วย Gemini
+                      </h3>
+                      <p className="text-sm text-red-200">{geminiError}</p>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {analysis.geminiAnalysis && !geminiLoading && (
+                <div
+                  className={`backdrop-blur-md border-2 rounded-2xl p-6 ${
+                    analysis.geminiAnalysis.isAIGenerated
+                      ? "bg-gradient-to-br from-purple-500/20 to-pink-500/20 border-purple-500/50"
+                      : "bg-gradient-to-br from-cyan-500/20 to-blue-500/20 border-cyan-500/50"
+                  }`}
+                >
+                  <div className="flex items-center gap-3 mb-4">
+                    <div
+                      className={`w-12 h-12 bg-gradient-to-br ${
+                        analysis.geminiAnalysis.isAIGenerated
+                          ? "from-purple-500 to-pink-500"
+                          : "from-cyan-500 to-blue-500"
+                      } rounded-full flex items-center justify-center`}
+                    >
                       <svg
                         className="w-7 h-7 text-white"
                         fill="none"
@@ -299,57 +387,68 @@ function App() {
                         />
                       </svg>
                     </div>
-                  ) : (
-                    <div className="w-12 h-12 bg-gradient-to-br from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-                      <svg
-                        className="w-7 h-7 text-white"
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-                        />
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          strokeWidth={2}
-                          d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-                        />
-                      </svg>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2 mb-1">
+                        <h3 className="text-2xl font-bold text-white">
+                          {analysis.geminiAnalysis.isAIGenerated
+                            ? "Gemini: ภาพจาก AI"
+                            : "Gemini: ภาพจริง"}
+                        </h3>
+                        <span
+                          className={`px-2 py-1 rounded-full text-xs font-semibold ${
+                            analysis.geminiAnalysis.confidence >= 70
+                              ? "bg-green-500/20 text-green-300"
+                              : analysis.geminiAnalysis.confidence >= 40
+                              ? "bg-yellow-500/20 text-yellow-300"
+                              : "bg-orange-500/20 text-orange-300"
+                          }`}
+                        >
+                          {analysis.geminiAnalysis.confidence}% แน่ใจ
+                        </span>
+                      </div>
+                      <p className="text-sm text-white/80">
+                        วิเคราะห์จากลักษณะภาพโดยตรง
+                      </p>
                     </div>
-                  )}
-                  <div>
-                    <h3 className="text-2xl font-bold text-white">
-                      {analysis.isAIGenerated ? "ภาพจาก AI" : "ภาพธรรมชาติ"}
-                    </h3>
-                    <p className="text-sm text-white/80">
-                      {analysis.isAIGenerated
-                        ? "ตรวจพบข้อมูลว่าเป็นภาพที่สร้างจาก AI"
-                        : "ไม่พบข้อมูลว่าเป็นภาพจาก AI"}
-                    </p>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="bg-black/30 rounded-lg p-3">
+                      <p className="text-sm font-semibold text-white/90 mb-1">
+                        เหตุผล:
+                      </p>
+                      <p className="text-sm text-white/80">
+                        {analysis.geminiAnalysis.reasoning}
+                      </p>
+                    </div>
+
+                    {analysis.geminiAnalysis.visualIndicators.length > 0 && (
+                      <div>
+                        <p className="text-sm font-semibold text-white/90 mb-2">
+                          ลักษณะที่พบ:
+                        </p>
+                        <div className="space-y-2">
+                          {analysis.geminiAnalysis.visualIndicators.map(
+                            (indicator, index) => (
+                              <div
+                                key={index}
+                                className="bg-black/30 rounded-lg px-3 py-2 flex items-start gap-2"
+                              >
+                                <span className="text-purple-400 mt-0.5">
+                                  •
+                                </span>
+                                <p className="text-sm text-white/80 flex-1">
+                                  {indicator}
+                                </p>
+                              </div>
+                            )
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-
-                {analysis.isAIGenerated && analysis.aiIndicators.length > 0 && (
-                  <div className="mt-4 space-y-2">
-                    <p className="text-sm font-semibold text-white/90">
-                      ตัวบ่งชี้:
-                    </p>
-                    {analysis.aiIndicators.map((indicator, index) => (
-                      <div
-                        key={index}
-                        className="bg-black/30 rounded-lg px-3 py-2"
-                      >
-                        <p className="text-sm text-white/80">{indicator}</p>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
+              )}
 
               {/* Basic Info */}
               <div className="bg-black/30 backdrop-blur-md border border-white/10 rounded-2xl p-6">
@@ -416,12 +515,12 @@ function App() {
                     return (
                       <div
                         key={key}
-                        className="bg-purple-500/10 rounded-lg p-3 hover:bg-purple-500/20 transition-colors"
+                        className="bg-purple-500/10 rounded-lg p-3 hover:bg-purple-500/20 transition-colors overflow-x-auto custom-scrollbar"
                       >
                         <p className="text-purple-400 font-semibold text-sm mb-2">
                           {key}
                         </p>
-                        <div className="space-y-1 pl-3">
+                        <div className="space-y-1 pl-3 overflow-x-auto custom-scrollbar">
                           {Object.entries(value).map(([subKey, subValue]) => (
                             <div key={subKey} className="text-xs">
                               <span className="text-purple-300">
@@ -439,7 +538,7 @@ function App() {
                   return (
                     <div
                       key={key}
-                      className="bg-purple-500/10 rounded-lg p-3 hover:bg-purple-500/20 transition-colors"
+                      className="bg-purple-500/10 rounded-lg p-3 hover:bg-purple-500/20 transition-colors overflow-x-auto custom-scrollbar"
                     >
                       <div className="flex justify-between items-start gap-4">
                         <span className="text-purple-400 font-semibold text-sm">

@@ -1,73 +1,118 @@
-# React + TypeScript + Vite
+# Photo Meta Analyzer 🔍
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+แอปพลิเคชันวิเคราะห์ข้อมูล metadata ของภาพและตรวจจับว่าภาพนั้นสร้างจาก AI หรือไม่
 
-Currently, two official plugins are available:
+## ✨ ฟีเจอร์
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 📸 **อ่าน Metadata** - แสดงข้อมูล EXIF/XMP ทั้งหมดของภาพ
+- 🤖 **ตรวจจับภาพ AI** - ใช้ 2 วิธีควบคู่กัน:
+  - **Metadata Detection**: ตรวจสอบจากข้อมูลที่ฝังในภาพ (Software, Artist, Parameters)
+  - **Gemini Vision AI**: วิเคราะห์ลักษณะภาพโดยตรง (ตรวจได้แม้ไม่มี metadata!)
+- 🎨 **UI สวยงาม** - Dark mode พร้อม glassmorphism effect
+- 🇹🇭 **รองรับภาษาไทย** - ทุก label เป็นภาษาไทย
 
-## React Compiler
+## 🚀 เริ่มต้นใช้งาน
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### 1. ติดตั้ง Dependencies
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+```bash
+npm install
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+### 2. ตั้งค่า Gemini API (ไม่บังคับ แต่แนะนำ)
 
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
+เพื่อเปิดใช้งานการตรวจจับด้วย AI:
 
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+1. **รับ API Key ฟรี** จาก [Google AI Studio](https://aistudio.google.com/app/apikey)
+2. **สร้างไฟล์ `.env`** ในโฟลเดอร์ project:
+
+```bash
+cp .env.example .env
 ```
+
+3. **เพิ่ม API Key** ลงในไฟล์ `.env`:
+
+```env
+VITE_GEMINI_API_KEY=your_actual_api_key_here
+```
+
+> **Note**: ถ้าไม่ตั้งค่า API Key ระบบจะใช้แค่การตรวจจับจาก metadata เท่านั้น
+
+### 3. รันโปรเจกต์
+
+```bash
+npm run dev
+```
+
+เปิดบราวเซอร์ไปที่ `http://localhost:5173`
+
+## 📦 Tech Stack
+
+- **React 19** - UI Framework
+- **TypeScript** - Type Safety
+- **Vite** - Build Tool & Dev Server
+- **Tailwind CSS 4** - Styling
+- **ExifReader** - อ่าน image metadata
+- **Google Gemini AI** - Visual AI Detection
+
+## 🔧 การใช้งาน
+
+1. **อัปโหลดภาพ** - คลิกที่กล่องหรือลากไฟล์มาวาง
+2. **ดูผลการวิเคราะห์**:
+   - ข้อมูลพื้นฐาน (ชื่อไฟล์, ขนาด, ความละเอียด)
+   - ผลการตรวจจับจาก Metadata
+   - ผลการวิเคราะห์จาก Gemini AI (ถ้ามี API key)
+   - ข้อมูล Metadata ทั้งหมด
+
+## 🎯 การตรวจจับ AI
+
+### Metadata Detection
+
+ตรวจหาคีย์เวิร์ดจากเครื่องมือสร้างภาพ AI ยอดนิยม:
+
+- Midjourney, Stable Diffusion, DALL-E
+- Adobe Firefly, Bing Image Creator
+- และอื่นๆ อีกมากมาย
+
+### Gemini Visual Analysis
+
+วิเคราะห์ลักษณะภาพโดยตรง เช่น:
+
+- Texture artifacts และ diffusion patterns
+- ปัญหาทางกายวิภาคศาสตร์ (นิ้วมือแปลก, สัดส่วนผิดปกติ)
+- ความไม่สมจริงของแสงเงา
+- ความสอดคล้องของพื้นหลัง
+- ลักษณะเฉพาะของภาพ AI
+
+## 🛠️ Scripts
+
+```bash
+npm run dev      # รัน development server
+npm run build    # สร้าง production build
+npm run preview  # ดูตัวอย่าง production build
+npm run lint     # ตรวจสอบโค้ดด้วย ESLint
+```
+
+## 📝 Environment Variables
+
+| Variable              | Description                                      | Required  |
+| --------------------- | ------------------------------------------------ | --------- |
+| `VITE_GEMINI_API_KEY` | Google Gemini API Key สำหรับ visual AI detection | ไม่บังคับ |
+
+## 🔐 ความปลอดภัย
+
+- ไฟล์ `.env` ถูก gitignore แล้ว จะไม่ถูก commit
+- API Key ไม่ถูกส่งไปยังเซิร์ฟเวอร์ใดๆ
+- ทุกอย่างทำงานบน client-side
+
+## 📄 License
+
+MIT
+
+## 🤝 Contributing
+
+Pull requests are welcome! สำหรับการเปลี่ยนแปลงใหญ่ กรุณาเปิด issue ก่อน
+
+---
+
+Made with ❤️ using React + TypeScript + Vite + Gemini AI

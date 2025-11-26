@@ -3,6 +3,7 @@ import ReactGA from "react-ga4";
 import ExifReader from "exifreader";
 import { geminiService } from "./services/gemini";
 import type { GeminiDetectionResult } from "./services/gemini";
+import { VisitorCounter } from "./components/VisitorCounter";
 
 // Initialize GA4
 const GA_MEASUREMENT_ID = import.meta.env.VITE_GOOGLE_ANALYTICS_ID;
@@ -748,6 +749,8 @@ function App() {
           </div>
         </div>
       )}
+      {/* Visitor Counter */}
+      <VisitorCounter />
     </div>
   );
 }

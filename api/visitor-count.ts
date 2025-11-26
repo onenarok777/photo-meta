@@ -46,30 +46,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    // Run report for active users in the last 30 days
+    // Run report for total users (all time - approx from 2020)
     const [response] = await analyticsDataClient.runReport({
       property: `properties/${propertyId}`,
       dateRanges: [
         {
-          startDate: "30daysAgo",
+          startDate: "2020-01-01",
           endDate: "today",
         },
       ],
       metrics: [
         {
-          name: "activeUsers",
+          name: "totalUsers",
         },
       ],
     });
 
-    const activeUsers = response.rows?.[0]?.metricValues?.[0]?.value || "0";
-
-    // Optional: Run another report for total users all time (if needed)
-    // For now, let's just return active users (last 30 days) as "Visitor Count"
+    const totalUsers = response.rows?.[0]?.metricValues?.[0]?.value || "0";
 
     return res.status(200).json({
-      activeUsers: parseInt(activeUsers, 10),
-      period: "30d",
+      totalUsers: parseInt(totalUsers, 10),
+      period: "all-time",
     });
   } catch (error) {
     console.error("Error fetching GA data:", error);

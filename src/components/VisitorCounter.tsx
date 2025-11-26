@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 
 interface VisitorData {
-  activeUsers: number;
+  totalUsers: number;
   period?: string;
   isMock?: boolean;
 }
@@ -9,7 +9,7 @@ interface VisitorData {
 export const VisitorCounter: React.FC = () => {
   const [data, setData] = useState<VisitorData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const [error] = useState(false);
 
   useEffect(() => {
     const fetchVisitorCount = async () => {
@@ -24,8 +24,8 @@ export const VisitorCounter: React.FC = () => {
         console.warn("Error fetching visitor count (using mock data):", err);
         // Fallback to mock data for development/preview
         setData({
-          activeUsers: 1234,
-          period: "30d",
+          totalUsers: 1234,
+          period: "all-time",
           isMock: true,
         });
       } finally {
@@ -39,24 +39,36 @@ export const VisitorCounter: React.FC = () => {
   if (error) return null; // Hide if error
 
   return (
-    <div className="fixed bottom-4 right-4 z-50 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="bg-black/40 backdrop-blur-md border border-white/10 rounded-full px-4 py-2 shadow-lg flex items-center gap-3 hover:bg-black/50 transition-colors">
-        <div className="relative">
-          <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
-          <div className="absolute inset-0 bg-green-500 rounded-full animate-ping opacity-75"></div>
-        </div>
-        <div className="flex flex-col">
-          <span className="text-[10px] text-purple-300 uppercase tracking-wider font-bold leading-none">
-            Visitors (30d)
-          </span>
-          <span className="text-sm font-bold text-white leading-none mt-1">
-            {loading ? (
-              <span className="animate-pulse">...</span>
-            ) : (
-              data?.activeUsers.toLocaleString()
-            )}
-          </span>
-        </div>
+    <div className="group flex items-center gap-3 bg-white/5 hover:bg-white/10 backdrop-blur-md border border-white/10 hover:border-purple-500/30 rounded-full pl-2 pr-5 py-1.5 transition-all duration-300">
+      {/* Icon Container */}
+      <div className="w-8 h-8 rounded-full bg-gradient-to-br from-purple-500/20 to-pink-500/20 flex items-center justify-center border border-white/5 group-hover:scale-110 transition-transform duration-300">
+        <svg
+          className="w-4 h-4 text-purple-300"
+          fill="none"
+          stroke="currentColor"
+          viewBox="0 0 24 24"
+        >
+          <path
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            strokeWidth={2}
+            d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"
+          />
+        </svg>
+      </div>
+
+      {/* Text Content */}
+      <div className="flex flex-col">
+        <span className="text-[10px] text-white/40 font-medium uppercase tracking-wider leading-none mb-0.5">
+          Total Users
+        </span>
+        <span className="text-sm font-bold text-white leading-none font-mono">
+          {loading ? (
+            <span className="animate-pulse">...</span>
+          ) : (
+            data?.totalUsers.toLocaleString()
+          )}
+        </span>
       </div>
     </div>
   );

@@ -4,7 +4,7 @@ export const AdBlockDetector: React.FC = () => {
   const [isAdBlockDetected, setIsAdBlockDetected] = useState(false);
 
   useEffect(() => {
-    // 1. Create a "bait" element that ad blockers usually hide
+    // Method 1: Bait Element (CSS Blocking)
     const bait = document.createElement("div");
     bait.className =
       "adsbox ad-banner ad-placement doubleclick ad-placeholder adsbygoogle";
@@ -16,8 +16,25 @@ export const AdBlockDetector: React.FC = () => {
     bait.innerHTML = "&nbsp;";
     document.body.appendChild(bait);
 
-    // 2. Check if the bait was blocked/hidden
+    // Method 2: Script Loading Check (Network Blocking)
+    const script = document.createElement("script");
+    script.src =
+      "https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js";
+    script.async = true;
+    script.onerror = () => {
+      setIsAdBlockDetected(true);
+    };
+    document.body.appendChild(script);
+
+    // Method 3: Fetch Check (Aggressive Network Check)
+    fetch("https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js", {
+      mode: "no-cors",
+    }).catch(() => {
+      setIsAdBlockDetected(true);
+    });
+
     const checkAdBlock = () => {
+      // Check Method 1
       if (
         !bait ||
         bait.offsetParent === null ||
@@ -28,19 +45,20 @@ export const AdBlockDetector: React.FC = () => {
         window.getComputedStyle(bait).display === "none"
       ) {
         setIsAdBlockDetected(true);
-      } else {
-        setIsAdBlockDetected(false);
       }
-      // Clean up
-      if (bait && bait.parentNode) {
-        bait.parentNode.removeChild(bait);
-      }
+
+      // Cleanup
+      if (bait && bait.parentNode) bait.parentNode.removeChild(bait);
+      if (script && script.parentNode) script.parentNode.removeChild(script);
     };
 
-    // Delay check slightly to allow ad blocker to act
     const timer = setTimeout(checkAdBlock, 2000);
 
-    return () => clearTimeout(timer);
+    return () => {
+      clearTimeout(timer);
+      if (bait && bait.parentNode) bait.parentNode.removeChild(bait);
+      if (script && script.parentNode) script.parentNode.removeChild(script);
+    };
   }, []);
 
   if (!isAdBlockDetected) return null;

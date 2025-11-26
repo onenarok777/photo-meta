@@ -25,6 +25,8 @@ interface ImageAnalysis {
   geminiAnalysis?: GeminiDetectionResult;
 }
 
+import { AdBlockDetector } from "./components/AdBlockDetector";
+
 function App() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [analysis, setAnalysis] = useState<ImageAnalysis | null>(null);
@@ -283,6 +285,7 @@ function App() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-900 via-purple-900 to-slate-900">
+      <AdBlockDetector />
       {/* Header */}
       <header className="bg-black/30 backdrop-blur-md border-b border-white/10 sticky top-0 z-[100]">
         <div className="container mx-auto px-4 py-6">
